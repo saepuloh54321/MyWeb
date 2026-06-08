@@ -279,7 +279,7 @@ public class MainActivity extends AppCompatActivity {
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
         
         TextView txtLink = view.findViewById(R.id.txtLink);
-        String url = "https://www.naragas.com";
+        String url = "https://www.saweria.co/sorasae";
         txtLink.setText(url);
         txtLink.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));

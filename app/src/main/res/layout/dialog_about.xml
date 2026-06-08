@@ -26,7 +26,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="Kelola website favorit Anda dengan mudah.\nScan QR atau klik link di bawah ini:" />
+        android:text="Kelola website favorit Anda dengan mudah.\nScan QR atau klik link di bawah ini untuk support:" />
 
     <TextView
         android:id="@+id/txtLink"
