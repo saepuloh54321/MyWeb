@@ -39,16 +39,19 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private DrawerLayout drawerLayout;
-    private View listContainer, webContainer;
+    private View listContainer, webContainer, historyContainer;
     private WebView webView;
     private TextView currentWebTitle;
     private SwitchMaterial switchRestrict;
     private WebAdapter adapter;
     private List<WebSite> webSiteList;
+    private HistoryAdapter historyAdapter;
+    private List<HistoryItem> historyList;
     private String baseDomain = "";
 
     private static final String PREFS_NAME = "WebPrefs";
     private static final String KEY_SITES = "SavedSites";
+    private static final String KEY_HISTORY = "SavedHistory";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,13 +63,17 @@ public class MainActivity extends AppCompatActivity {
         drawerLayout = findViewById(R.id.drawer_layout);
         listContainer = findViewById(R.id.listContainer);
         webContainer = findViewById(R.id.webContainer);
+        historyContainer = findViewById(R.id.historyContainer);
         webView = findViewById(R.id.webView);
         currentWebTitle = findViewById(R.id.currentWebTitle);
         switchRestrict = findViewById(R.id.switchRestrict);
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
+        RecyclerView recyclerViewHistory = findViewById(R.id.recyclerViewHistory);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
         View btnCloseWeb = findViewById(R.id.btnCloseWeb);
         View btnOpenDrawer = findViewById(R.id.btnOpenDrawer);
+        View btnCloseHistory = findViewById(R.id.btnCloseHistory);
+        View btnClearHistory = findViewById(R.id.btnClearHistory);
         NavigationView navView = findViewById(R.id.nav_view);
 
         // Adjust for Edge-to-Edge
@@ -78,8 +85,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Load Data
         loadWebSites();
+        loadHistory();
 
-        // Setup RecyclerView
+        // Setup RecyclerView (Websites)
         adapter = new WebAdapter(webSiteList, new WebAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(WebSite site) {
@@ -101,9 +109,25 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
+        // Setup RecyclerView (History)
+        historyAdapter = new HistoryAdapter(historyList, url -> {
+            loadDirectUrl(url, null);
+            closeHistory();
+        });
+        recyclerViewHistory.setLayoutManager(new LinearLayoutManager(this));
+        recyclerViewHistory.setAdapter(historyAdapter);
+
         // Setup WebView
         webView.getSettings().setJavaScriptEnabled(true);
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (!url.equals("about:blank")) {
+                    addToHistory(url);
+                }
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
@@ -129,8 +153,11 @@ public class MainActivity extends AppCompatActivity {
             int id = item.getItemId();
             if (id == R.id.nav_home) {
                 closeWebView();
+                closeHistory();
             } else if (id == R.id.nav_add) {
                 showAddDialog();
+            } else if (id == R.id.nav_history) {
+                openHistory();
             } else if (id == R.id.nav_about) {
                 new AlertDialog.Builder(this)
                         .setTitle("Tentang")
@@ -148,12 +175,29 @@ public class MainActivity extends AppCompatActivity {
         // Close Web UI
         btnCloseWeb.setOnClickListener(v -> closeWebView());
 
+        // History Actions
+        btnCloseHistory.setOnClickListener(v -> closeHistory());
+        btnClearHistory.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Hapus Riwayat")
+                    .setMessage("Apakah Anda yakin ingin menghapus semua riwayat?")
+                    .setPositiveButton("Ya", (d, w) -> {
+                        historyList.clear();
+                        historyAdapter.notifyDataSetChanged();
+                        saveHistory();
+                    })
+                    .setNegativeButton("Tidak", null)
+                    .show();
+        });
+
         // Handle Back Press
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
                 if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
                     drawerLayout.closeDrawer(GravityCompat.END);
+                } else if (historyContainer.getVisibility() == View.VISIBLE) {
+                    closeHistory();
                 } else if (webContainer.getVisibility() == View.VISIBLE) {
                     if (webView.canGoBack()) {
                         webView.goBack();
@@ -169,22 +213,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openWebsite(WebSite site) {
-        String url = site.getUrl();
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            url = "https://" + url;
+        loadDirectUrl(site.getUrl(), site.getName());
+    }
+
+    private void loadDirectUrl(String url, String title) {
+        String finalUrl = url;
+        if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://")) {
+            finalUrl = "https://" + finalUrl;
         }
 
         try {
-            Uri uri = Uri.parse(url);
+            Uri uri = Uri.parse(finalUrl);
             baseDomain = uri.getHost();
             if (baseDomain == null) {
                 Toast.makeText(this, "URL tidak valid", Toast.LENGTH_SHORT).show();
                 return;
             }
             
-            currentWebTitle.setText(site.getName());
-            webView.loadUrl(url);
+            currentWebTitle.setText(title != null ? title : finalUrl);
+            webView.loadUrl(finalUrl);
             listContainer.setVisibility(View.GONE);
+            historyContainer.setVisibility(View.GONE);
             webContainer.setVisibility(View.VISIBLE);
         } catch (Exception e) {
             Toast.makeText(this, "Gagal memuat: " + e.getMessage(), Toast.LENGTH_SHORT).show();
@@ -195,6 +244,34 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl("about:blank");
         webContainer.setVisibility(View.GONE);
         listContainer.setVisibility(View.VISIBLE);
+    }
+
+    private void openHistory() {
+        listContainer.setVisibility(View.GONE);
+        webContainer.setVisibility(View.GONE);
+        historyContainer.setVisibility(View.VISIBLE);
+        historyAdapter.notifyDataSetChanged();
+    }
+
+    private void closeHistory() {
+        historyContainer.setVisibility(View.GONE);
+        if (webContainer.getVisibility() != View.VISIBLE) {
+            listContainer.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void addToHistory(String url) {
+        // Jangan simpan jika URL sama dengan yang terakhir
+        if (!historyList.isEmpty() && historyList.get(0).getUrl().equals(url)) {
+            return;
+        }
+        historyList.add(0, new HistoryItem(url, System.currentTimeMillis()));
+        // Batasi histori (misal 100 item)
+        if (historyList.size() > 100) {
+            historyList.remove(historyList.size() - 1);
+        }
+        historyAdapter.notifyDataSetChanged();
+        saveHistory();
     }
 
     private void showAddDialog() {
@@ -267,6 +344,35 @@ public class MainActivity extends AppCompatActivity {
             prefs.edit().putString(KEY_SITES, array.toString()).apply();
         } catch (JSONException e) {
             android.util.Log.e("MainActivity", "Error saving sites", e);
+        }
+    }
+
+    private void loadHistory() {
+        historyList = new ArrayList<>();
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String json = prefs.getString(KEY_HISTORY, null);
+        if (json != null) {
+            try {
+                JSONArray array = new JSONArray(json);
+                for (int i = 0; i < array.length(); i++) {
+                    historyList.add(HistoryItem.fromJsonObject(array.getJSONObject(i)));
+                }
+            } catch (JSONException e) {
+                android.util.Log.e("MainActivity", "Error loading history", e);
+            }
+        }
+    }
+
+    private void saveHistory() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        JSONArray array = new JSONArray();
+        try {
+            for (HistoryItem item : historyList) {
+                array.put(item.toJsonObject());
+            }
+            prefs.edit().putString(KEY_HISTORY, array.toString()).apply();
+        } catch (JSONException e) {
+            android.util.Log.e("MainActivity", "Error saving history", e);
         }
     }
 }
