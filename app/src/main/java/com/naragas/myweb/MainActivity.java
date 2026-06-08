@@ -2,6 +2,7 @@ package com.naragas.myweb;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
@@ -159,11 +160,7 @@ public class MainActivity extends AppCompatActivity {
             } else if (id == R.id.nav_history) {
                 openHistory();
             } else if (id == R.id.nav_about) {
-                new AlertDialog.Builder(this)
-                        .setTitle("Tentang")
-                        .setMessage("Aplikasi My Web v1.0\nKelola website favorit Anda dengan mudah.")
-                        .setPositiveButton("OK", null)
-                        .show();
+                showAboutDialog();
             }
             drawerLayout.closeDrawer(GravityCompat.END);
             return true;
@@ -275,6 +272,23 @@ public class MainActivity extends AppCompatActivity {
         }
         historyAdapter.notifyDataSetChanged();
         saveHistory();
+    }
+
+    private void showAboutDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
+        
+        TextView txtLink = view.findViewById(R.id.txtLink);
+        String url = "https://www.naragas.com";
+        txtLink.setText(url);
+        txtLink.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(intent);
+        });
+
+        builder.setView(view);
+        builder.setPositiveButton("Tutup", null);
+        builder.show();
     }
 
     private void showAddDialog() {
