@@ -16,14 +16,18 @@ import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
+import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import org.json.JSONArray;
@@ -34,11 +38,11 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
+    private DrawerLayout drawerLayout;
     private View listContainer, webContainer;
     private WebView webView;
     private TextView currentWebTitle;
     private SwitchMaterial switchRestrict;
-    private RecyclerView recyclerView;
     private WebAdapter adapter;
     private List<WebSite> webSiteList;
     private String baseDomain = "";
@@ -53,14 +57,17 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Initialize Views
+        drawerLayout = findViewById(R.id.drawer_layout);
         listContainer = findViewById(R.id.listContainer);
         webContainer = findViewById(R.id.webContainer);
         webView = findViewById(R.id.webView);
         currentWebTitle = findViewById(R.id.currentWebTitle);
         switchRestrict = findViewById(R.id.switchRestrict);
-        recyclerView = findViewById(R.id.recyclerView);
+        RecyclerView recyclerView = findViewById(R.id.recyclerView);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
         View btnCloseWeb = findViewById(R.id.btnCloseWeb);
+        View btnOpenDrawer = findViewById(R.id.btnOpenDrawer);
+        NavigationView navView = findViewById(R.id.nav_view);
 
         // Adjust for Edge-to-Edge
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -114,6 +121,27 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Open Drawer
+        btnOpenDrawer.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.END));
+
+        // Navigation Drawer Item Clicks
+        navView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_home) {
+                closeWebView();
+            } else if (id == R.id.nav_add) {
+                showAddDialog();
+            } else if (id == R.id.nav_about) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Tentang")
+                        .setMessage("Aplikasi My Web v1.0\nKelola website favorit Anda dengan mudah.")
+                        .setPositiveButton("OK", null)
+                        .show();
+            }
+            drawerLayout.closeDrawer(GravityCompat.END);
+            return true;
+        });
+
         // Add Site FAB
         fabAdd.setOnClickListener(v -> showAddDialog());
 
@@ -124,7 +152,9 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                if (webContainer.getVisibility() == View.VISIBLE) {
+                if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
+                    drawerLayout.closeDrawer(GravityCompat.END);
+                } else if (webContainer.getVisibility() == View.VISIBLE) {
                     if (webView.canGoBack()) {
                         webView.goBack();
                     } else {
