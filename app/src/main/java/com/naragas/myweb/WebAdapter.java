@@ -38,6 +38,7 @@ public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         WebSite site = webSites.get(position);
         holder.textName.setText(site.getName());
+        holder.textLastAccessed.setText(site.getFormattedLastAccessed());
         holder.textUrl.setText(site.getUrl());
         holder.itemView.setOnClickListener(v -> listener.onItemClick(site));
         holder.btnEdit.setOnClickListener(v -> listener.onEditClick(position, site));
@@ -50,12 +51,13 @@ public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView textName, textUrl;
+        TextView textName, textUrl, textLastAccessed;
         ImageButton btnEdit, btnDelete;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             textName = itemView.findViewById(R.id.textName);
+            textLastAccessed = itemView.findViewById(R.id.textLastAccessed);
             textUrl = itemView.findViewById(R.id.textUrl);
             btnEdit = itemView.findViewById(R.id.btnEdit);
             btnDelete = itemView.findViewById(R.id.btnDelete);

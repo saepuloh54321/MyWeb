@@ -213,6 +213,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void openWebsite(WebSite site) {
+        site.setLastAccessed(System.currentTimeMillis());
+        adapter.notifyDataSetChanged();
+        saveWebSites();
         loadDirectUrl(site.getUrl(), site.getName());
     }
 
