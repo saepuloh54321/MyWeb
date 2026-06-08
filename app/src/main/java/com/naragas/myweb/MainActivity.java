@@ -49,10 +49,12 @@ public class MainActivity extends AppCompatActivity {
     private HistoryAdapter historyAdapter;
     private List<HistoryItem> historyList;
     private String baseDomain = "";
+    private String currentSort = "added"; // "added", "edited", "accessed"
 
     private static final String PREFS_NAME = "WebPrefs";
     private static final String KEY_SITES = "SavedSites";
     private static final String KEY_HISTORY = "SavedHistory";
+    private static final String KEY_SORT = "SortPref";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +75,7 @@ public class MainActivity extends AppCompatActivity {
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
         View btnCloseWeb = findViewById(R.id.btnCloseWeb);
         View btnOpenDrawer = findViewById(R.id.btnOpenDrawer);
+        View btnSort = findViewById(R.id.btnSort);
         View btnCloseHistory = findViewById(R.id.btnCloseHistory);
         View btnClearHistory = findViewById(R.id.btnClearHistory);
         NavigationView navView = findViewById(R.id.nav_view);
@@ -85,6 +88,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // Load Data
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        currentSort = prefs.getString(KEY_SORT, "added");
         loadWebSites();
         loadHistory();
 
@@ -149,6 +154,9 @@ public class MainActivity extends AppCompatActivity {
         // Open Drawer
         btnOpenDrawer.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.END));
 
+        // Sort List
+        btnSort.setOnClickListener(v -> showSortDialog());
+
         // Navigation Drawer Item Clicks
         navView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
@@ -211,6 +219,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void openWebsite(WebSite site) {
         site.setLastAccessed(System.currentTimeMillis());
+        sortWebSites();
         adapter.notifyDataSetChanged();
         saveWebSites();
         loadDirectUrl(site.getUrl(), site.getName());
@@ -274,6 +283,43 @@ public class MainActivity extends AppCompatActivity {
         saveHistory();
     }
 
+    private void showSortDialog() {
+        String[] options = {"Baru Ditambahkan", "Baru Diubah", "Baru Diakses"};
+        int checkedItem = 0;
+        if (currentSort.equals("edited")) checkedItem = 1;
+        else if (currentSort.equals("accessed")) checkedItem = 2;
+
+        new AlertDialog.Builder(this)
+                .setTitle("Urutkan Berdasarkan")
+                .setSingleChoiceItems(options, checkedItem, (dialog, which) -> {
+                    if (which == 0) currentSort = "added";
+                    else if (which == 1) currentSort = "edited";
+                    else if (which == 2) currentSort = "accessed";
+                    
+                    getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                            .edit().putString(KEY_SORT, currentSort).apply();
+                    
+                    sortWebSites();
+                    adapter.notifyDataSetChanged();
+                    dialog.dismiss();
+                })
+                .show();
+    }
+
+    private void sortWebSites() {
+        if (webSiteList == null || webSiteList.isEmpty()) return;
+        
+        webSiteList.sort((a, b) -> {
+            if (currentSort.equals("edited")) {
+                return Long.compare(b.getUpdatedAt(), a.getUpdatedAt());
+            } else if (currentSort.equals("accessed")) {
+                return Long.compare(b.getLastAccessed(), a.getLastAccessed());
+            } else {
+                return Long.compare(b.getCreatedAt(), a.getCreatedAt());
+            }
+        });
+    }
+
     private void showAboutDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
@@ -320,12 +366,13 @@ public class MainActivity extends AppCompatActivity {
             
             if (!name.isEmpty() && !url.isEmpty()) {
                 if (isEdit) {
-                    webSiteList.set(position, new WebSite(name, url));
-                    adapter.notifyItemChanged(position);
+                    existingSite.setName(name);
+                    existingSite.setUrl(url);
                 } else {
                     webSiteList.add(new WebSite(name, url));
-                    adapter.notifyItemInserted(webSiteList.size() - 1);
                 }
+                sortWebSites();
+                adapter.notifyDataSetChanged();
                 saveWebSites();
             } else {
                 Toast.makeText(this, "Nama dan URL harus diisi", Toast.LENGTH_SHORT).show();
@@ -345,6 +392,7 @@ public class MainActivity extends AppCompatActivity {
                 for (int i = 0; i < array.length(); i++) {
                     webSiteList.add(WebSite.fromJsonObject(array.getJSONObject(i)));
                 }
+                sortWebSites();
             } catch (JSONException e) {
                 android.util.Log.e("MainActivity", "Error loading sites", e);
             }

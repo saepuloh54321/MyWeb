@@ -42,6 +42,19 @@
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <ImageButton
+                    android:id="@+id/btnSort"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:padding="8dp"
+                    android:src="@android:drawable/ic_menu_sort_alphabetically"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/btnOpenDrawer"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@android:color/white" />
+
+                <ImageButton
                     android:id="@+id/btnOpenDrawer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
