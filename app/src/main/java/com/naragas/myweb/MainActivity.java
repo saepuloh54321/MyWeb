@@ -293,10 +293,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSortDialog() {
-        String[] options = {"Baru Ditambahkan", "Baru Diubah", "Baru Diakses"};
+        String[] options = {"Baru Ditambahkan", "Baru Diubah", "Baru Diakses", "Nama A-Z", "Nama Z-A"};
         int checkedItem = 0;
         if (currentSort.equals("edited")) checkedItem = 1;
         else if (currentSort.equals("accessed")) checkedItem = 2;
+        else if (currentSort.equals("az")) checkedItem = 3;
+        else if (currentSort.equals("za")) checkedItem = 4;
 
         new AlertDialog.Builder(this)
                 .setTitle("Urutkan Berdasarkan")
@@ -304,6 +306,8 @@ public class MainActivity extends AppCompatActivity {
                     if (which == 0) currentSort = "added";
                     else if (which == 1) currentSort = "edited";
                     else if (which == 2) currentSort = "accessed";
+                    else if (which == 3) currentSort = "az";
+                    else if (which == 4) currentSort = "za";
                     
                     getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                             .edit().putString(KEY_SORT, currentSort).apply();
@@ -319,12 +323,17 @@ public class MainActivity extends AppCompatActivity {
         if (webSiteList == null || webSiteList.isEmpty()) return;
         
         webSiteList.sort((a, b) -> {
-            if (currentSort.equals("edited")) {
-                return Long.compare(b.getUpdatedAt(), a.getUpdatedAt());
-            } else if (currentSort.equals("accessed")) {
-                return Long.compare(b.getLastAccessed(), a.getLastAccessed());
-            } else {
-                return Long.compare(b.getCreatedAt(), a.getCreatedAt());
+            switch (currentSort) {
+                case "edited":
+                    return Long.compare(b.getUpdatedAt(), a.getUpdatedAt());
+                case "accessed":
+                    return Long.compare(b.getLastAccessed(), a.getLastAccessed());
+                case "az":
+                    return a.getName().compareToIgnoreCase(b.getName());
+                case "za":
+                    return b.getName().compareToIgnoreCase(a.getName());
+                default: // "added"
+                    return Long.compare(b.getCreatedAt(), a.getCreatedAt());
             }
         });
     }
