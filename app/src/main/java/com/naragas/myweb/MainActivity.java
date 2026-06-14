@@ -50,11 +50,13 @@ public class MainActivity extends AppCompatActivity {
     private List<HistoryItem> historyList;
     private String baseDomain = "";
     private String currentSort = "added"; // "added", "edited", "accessed"
+    private boolean isAuthenticated = false;
 
     private static final String PREFS_NAME = "WebPrefs";
     private static final String KEY_SITES = "SavedSites";
     private static final String KEY_HISTORY = "SavedHistory";
     private static final String KEY_SORT = "SortPref";
+    private static final String KEY_PIN = "AppPin";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,6 +94,9 @@ public class MainActivity extends AppCompatActivity {
         currentSort = prefs.getString(KEY_SORT, "added");
         loadWebSites();
         loadHistory();
+
+        // Check PIN Lock
+        checkAppLock();
 
         // Setup RecyclerView (Websites)
         adapter = new WebAdapter(webSiteList, new WebAdapter.OnItemClickListener() {
@@ -167,6 +172,10 @@ public class MainActivity extends AppCompatActivity {
                 showAddDialog();
             } else if (id == R.id.nav_history) {
                 openHistory();
+            } else if (id == R.id.nav_pin) {
+                showPinSetupDialog();
+            } else if (id == R.id.nav_logout) {
+                logout();
             } else if (id == R.id.nav_about) {
                 showAboutDialog();
             }
@@ -320,12 +329,83 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void checkAppLock() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String savedPin = prefs.getString(KEY_PIN, "");
+        if (savedPin.isEmpty()) {
+            isAuthenticated = true;
+        } else {
+            isAuthenticated = false;
+            showPinEntryDialog(savedPin);
+        }
+    }
+
+    private void showPinEntryDialog(String savedPin) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Aplikasi Terkunci");
+        builder.setCancelable(false);
+
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_pin, null);
+        EditText inputPin = view.findViewById(R.id.inputPin);
+        
+        builder.setView(view);
+        builder.setPositiveButton("Buka", null); // Set later to prevent auto-dismiss
+        builder.setNegativeButton("Keluar", (d, w) -> finish());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String enteredPin = inputPin.getText().toString();
+            if (enteredPin.equals(savedPin)) {
+                isAuthenticated = true;
+                dialog.dismiss();
+            } else {
+                Toast.makeText(this, "PIN Salah!", Toast.LENGTH_SHORT).show();
+                inputPin.setText("");
+            }
+        });
+    }
+
+    private void showPinSetupDialog() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String savedPin = prefs.getString(KEY_PIN, "");
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(savedPin.isEmpty() ? "Atur PIN Baru" : "Ubah PIN");
+
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_pin, null);
+        TextView txtInstruction = view.findViewById(R.id.txtPinInstruction);
+        EditText inputPin = view.findViewById(R.id.inputPin);
+        
+        txtInstruction.setText(savedPin.isEmpty() ? "Masukkan 4 angka PIN" : "Masukkan PIN Baru (Kosongkan untuk hapus)");
+        
+        builder.setView(view);
+        builder.setPositiveButton("Simpan", (dialog, which) -> {
+            String newPin = inputPin.getText().toString();
+            if (newPin.isEmpty() || newPin.length() == 4) {
+                prefs.edit().putString(KEY_PIN, newPin).apply();
+                Toast.makeText(this, newPin.isEmpty() ? "PIN Dihapus" : "PIN Berhasil Disimpan", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "PIN harus 4 angka", Toast.LENGTH_SHORT).show();
+            }
+        });
+        builder.setNegativeButton("Batal", null);
+        builder.show();
+    }
+
+    private void logout() {
+        isAuthenticated = false;
+        drawerLayout.closeDrawer(GravityCompat.END);
+        checkAppLock();
+    }
+
     private void showAboutDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
         
         TextView txtLink = view.findViewById(R.id.txtLink);
-        String url = "https://www.saweria.co/sorasae";
+        String url = "https://www.naragas.com";
         txtLink.setText(url);
         txtLink.setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
