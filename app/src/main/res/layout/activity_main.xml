@@ -203,6 +203,29 @@
                         android:text="Loading..."
                         android:textStyle="bold" />
 
+                    <TextView
+                        android:visibility="gone"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Desk"
+                        android:textSize="10sp"
+                        android:layout_marginEnd="2dp" />
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchDesktop"
+                        android:visibility="gone"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        app:useMaterialThemeColors="true" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Lock"
+                        android:textSize="10sp"
+                        android:layout_marginEnd="2dp" />
+
                     <com.google.android.material.switchmaterial.SwitchMaterial
                         android:id="@+id/switchRestrict"
                         android:layout_width="wrap_content"

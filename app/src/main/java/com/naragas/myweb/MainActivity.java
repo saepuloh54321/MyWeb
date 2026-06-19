@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private View listContainer, webContainer, historyContainer;
     private WebView webView;
     private TextView currentWebTitle, textWebCount;
-    private SwitchMaterial switchRestrict;
+    private SwitchMaterial switchRestrict, switchDesktop;
     private WebAdapter adapter;
     private List<WebSite> webSiteList;
     private HistoryAdapter historyAdapter;
@@ -73,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
         currentWebTitle = findViewById(R.id.currentWebTitle);
         textWebCount = findViewById(R.id.textWebCount);
         switchRestrict = findViewById(R.id.switchRestrict);
+        switchDesktop = findViewById(R.id.switchDesktop);
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         RecyclerView recyclerViewHistory = findViewById(R.id.recyclerViewHistory);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
@@ -140,6 +141,23 @@ public class MainActivity extends AppCompatActivity {
         webView.getSettings().setSupportZoom(true);
         webView.getSettings().setBuiltInZoomControls(true);
         webView.getSettings().setDisplayZoomControls(false);
+
+        // Desktop Mode Support
+        String mobileUserAgent = webView.getSettings().getUserAgentString();
+        String desktopUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+        switchDesktop.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                webView.getSettings().setUserAgentString(desktopUserAgent);
+                webView.getSettings().setUseWideViewPort(true);
+                webView.getSettings().setLoadWithOverviewMode(true);
+            } else {
+                webView.getSettings().setUserAgentString(mobileUserAgent);
+                webView.getSettings().setUseWideViewPort(false);
+                webView.getSettings().setLoadWithOverviewMode(false);
+            }
+            webView.reload();
+        });
 
         webView.setWebChromeClient(new android.webkit.WebChromeClient());
         webView.setWebViewClient(new WebViewClient() {
