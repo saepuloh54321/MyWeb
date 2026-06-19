@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private View listContainer, webContainer, historyContainer;
     private WebView webView;
-    private TextView currentWebTitle;
+    private TextView currentWebTitle, textWebCount;
     private SwitchMaterial switchRestrict;
     private WebAdapter adapter;
     private List<WebSite> webSiteList;
@@ -71,6 +71,7 @@ public class MainActivity extends AppCompatActivity {
         historyContainer = findViewById(R.id.historyContainer);
         webView = findViewById(R.id.webView);
         currentWebTitle = findViewById(R.id.currentWebTitle);
+        textWebCount = findViewById(R.id.textWebCount);
         switchRestrict = findViewById(R.id.switchRestrict);
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         RecyclerView recyclerViewHistory = findViewById(R.id.recyclerViewHistory);
@@ -94,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
         currentSort = prefs.getString(KEY_SORT, "added");
         loadWebSites();
         loadHistory();
+        updateWebCount();
 
         // Check PIN Lock
         checkAppLock();
@@ -115,6 +117,7 @@ public class MainActivity extends AppCompatActivity {
                 webSiteList.remove(position);
                 adapter.notifyItemRemoved(position);
                 saveWebSites();
+                updateWebCount();
             }
         });
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -418,6 +421,12 @@ public class MainActivity extends AppCompatActivity {
         checkAppLock();
     }
 
+    private void updateWebCount() {
+        if (textWebCount != null && webSiteList != null) {
+            textWebCount.setText("(" + webSiteList.size() + ")");
+        }
+    }
+
     private void showAboutDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
@@ -472,6 +481,7 @@ public class MainActivity extends AppCompatActivity {
                 sortWebSites();
                 adapter.notifyDataSetChanged();
                 saveWebSites();
+                updateWebCount();
             } else {
                 Toast.makeText(this, "Nama dan URL harus diisi", Toast.LENGTH_SHORT).show();
             }
@@ -491,6 +501,7 @@ public class MainActivity extends AppCompatActivity {
                     webSiteList.add(WebSite.fromJsonObject(array.getJSONObject(i)));
                 }
                 sortWebSites();
+                updateWebCount();
             } catch (JSONException e) {
                 android.util.Log.e("MainActivity", "Error loading sites", e);
             }
