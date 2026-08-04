@@ -1,22 +1,38 @@
 package com.naragas.myweb;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
+import android.webkit.MimeTypeMap;
+import android.webkit.URLUtil;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebChromeClient.FileChooserParams;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
@@ -34,6 +50,8 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,6 +60,8 @@ public class MainActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private View listContainer, webContainer, historyContainer;
     private WebView webView;
+    private ProgressBar progressBar;
+    private EditText editSearch;
     private TextView currentWebTitle, textWebCount;
     private SwitchMaterial switchRestrict, switchDesktop;
     private WebAdapter adapter;
@@ -51,6 +71,8 @@ public class MainActivity extends AppCompatActivity {
     private String baseDomain = "";
     private String currentSort = "added"; // "added", "edited", "accessed"
     private boolean isAuthenticated = false;
+    private ValueCallback<Uri[]> uploadMessage;
+    private ActivityResultLauncher<Intent> filePickerLauncher;
 
     private static final String PREFS_NAME = "WebPrefs";
     private static final String KEY_SITES = "SavedSites";
@@ -70,6 +92,8 @@ public class MainActivity extends AppCompatActivity {
         webContainer = findViewById(R.id.webContainer);
         historyContainer = findViewById(R.id.historyContainer);
         webView = findViewById(R.id.webView);
+        progressBar = findViewById(R.id.progressBar);
+        editSearch = findViewById(R.id.editSearch);
         currentWebTitle = findViewById(R.id.currentWebTitle);
         textWebCount = findViewById(R.id.textWebCount);
         switchRestrict = findViewById(R.id.switchRestrict);
@@ -80,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
         View btnCloseWeb = findViewById(R.id.btnCloseWeb);
         View btnOpenDrawer = findViewById(R.id.btnOpenDrawer);
         View btnSort = findViewById(R.id.btnSort);
+        View btnRefresh = findViewById(R.id.btnRefresh);
         View btnCloseHistory = findViewById(R.id.btnCloseHistory);
         View btnClearHistory = findViewById(R.id.btnClearHistory);
         NavigationView navView = findViewById(R.id.nav_view);
@@ -98,6 +123,39 @@ public class MainActivity extends AppCompatActivity {
         loadHistory();
         updateWebCount();
 
+        // Search Logic
+        editSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                adapter.filter(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        // Setup File Picker for Upload
+        filePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && uploadMessage != null) {
+                        Intent data = result.getData();
+                        Uri[] results = null;
+                        if (data != null) {
+                            results = new Uri[]{data.getData()};
+                        }
+                        uploadMessage.onReceiveValue(results);
+                        uploadMessage = null;
+                    } else if (uploadMessage != null) {
+                        uploadMessage.onReceiveValue(null);
+                        uploadMessage = null;
+                    }
+                }
+        );
+
         // Check PIN Lock
         checkAppLock();
 
@@ -110,13 +168,13 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onEditClick(int position, WebSite site) {
-                showEditDialog(position, site);
+                showEditDialog(site);
             }
 
             @Override
-            public void onDeleteClick(int position) {
-                webSiteList.remove(position);
-                adapter.notifyItemRemoved(position);
+            public void onDeleteClick(WebSite site) {
+                webSiteList.remove(site);
+                adapter.updateList(webSiteList);
                 saveWebSites();
                 updateWebCount();
             }
@@ -159,7 +217,60 @@ public class MainActivity extends AppCompatActivity {
             webView.reload();
         });
 
-        webView.setWebChromeClient(new android.webkit.WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView view, int newProgress) {
+                if (newProgress == 100) {
+                    progressBar.setVisibility(View.GONE);
+                } else {
+                    progressBar.setVisibility(View.VISIBLE);
+                    progressBar.setProgress(newProgress);
+                }
+            }
+
+            @Override
+            public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                uploadMessage = filePathCallback;
+                Intent intent = fileChooserParams.createIntent();
+                try {
+                    filePickerLauncher.launch(intent);
+                    return true;
+                } catch (Exception e) {
+                    uploadMessage = null;
+                    return false;
+                }
+            }
+        });
+
+        // Setup Download Listener
+        webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+            try {
+                String fileName = URLUtil.guessFileName(url, contentDisposition, mimeType);
+                
+                // Create download directory
+                File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                if (!downloadDir.exists()) {
+                    downloadDir.mkdirs();
+                }
+                
+                File file = new File(downloadDir, fileName);
+                
+                // Show download confirmation dialog
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Download File")
+                        .setMessage("Download " + fileName + "?")
+                        .setPositiveButton("Download", (dialog, which) -> {
+                            // Use download manager or open in browser
+                            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                            startActivity(intent);
+                            Toast.makeText(MainActivity.this, "Membuka di browser untuk download", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Batal", null)
+                        .show();
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this, "Gagal download: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
@@ -192,6 +303,9 @@ public class MainActivity extends AppCompatActivity {
         // Sort List
         btnSort.setOnClickListener(v -> showSortDialog());
 
+        // Refresh WebView
+        btnRefresh.setOnClickListener(v -> webView.reload());
+
         // Navigation Drawer Item Clicks
         navView.setNavigationItemSelectedListener(item -> {
             int id = item.getItemId();
@@ -204,6 +318,8 @@ public class MainActivity extends AppCompatActivity {
                 openHistory();
             } else if (id == R.id.nav_pin) {
                 showPinSetupDialog();
+            } else if (id == R.id.nav_clear) {
+                clearAppData();
             } else if (id == R.id.nav_logout) {
                 logout();
             } else if (id == R.id.nav_about) {
@@ -259,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
     private void openWebsite(WebSite site) {
         site.setLastAccessed(System.currentTimeMillis());
         sortWebSites();
-        adapter.notifyDataSetChanged();
+        adapter.updateList(webSiteList);
         saveWebSites();
         loadDirectUrl(site.getUrl(), site.getName());
     }
@@ -343,7 +459,7 @@ public class MainActivity extends AppCompatActivity {
                             .edit().putString(KEY_SORT, currentSort).apply();
                     
                     sortWebSites();
-                    adapter.notifyDataSetChanged();
+                    adapter.updateList(webSiteList);
                     dialog.dismiss();
                 })
                 .show();
@@ -439,6 +555,27 @@ public class MainActivity extends AppCompatActivity {
         checkAppLock();
     }
 
+    private void clearAppData() {
+        new AlertDialog.Builder(this)
+                .setTitle("Bersihkan Data")
+                .setMessage("Apakah Anda yakin ingin menghapus Cache, Cookie, dan Data Penjelajahan?\n\n(Anda mungkin harus login ulang di beberapa website)")
+                .setPositiveButton("Ya, Bersihkan", (dialog, which) -> {
+                    // Clear Cache
+                    webView.clearCache(true);
+                    
+                    // Clear Cookies
+                    CookieManager.getInstance().removeAllCookies(null);
+                    CookieManager.getInstance().flush();
+                    
+                    // Clear Web Storage (Databases, Local Storage)
+                    WebStorage.getInstance().deleteAllData();
+                    
+                    Toast.makeText(this, "Data penjelajahan berhasil dibersihkan", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
     private void updateWebCount() {
         if (textWebCount != null && webSiteList != null) {
             textWebCount.setText("(" + webSiteList.size() + ")");
@@ -463,14 +600,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAddDialog() {
-        showSiteDialog(null, null);
+        showSiteDialog(null);
     }
 
-    private void showEditDialog(int position, WebSite site) {
-        showSiteDialog(position, site);
+    private void showEditDialog(WebSite site) {
+        showSiteDialog(site);
     }
 
-    private void showSiteDialog(Integer position, WebSite existingSite) {
+    private void showSiteDialog(WebSite existingSite) {
         boolean isEdit = existingSite != null;
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(isEdit ? "Ubah Website" : "Tambah Website");
@@ -497,7 +634,7 @@ public class MainActivity extends AppCompatActivity {
                     webSiteList.add(new WebSite(name, url));
                 }
                 sortWebSites();
-                adapter.notifyDataSetChanged();
+                adapter.updateList(webSiteList);
                 saveWebSites();
                 updateWebCount();
             } else {

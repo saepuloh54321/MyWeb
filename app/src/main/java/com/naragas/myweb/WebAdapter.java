@@ -9,22 +9,45 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
 
-    private final List<WebSite> webSites;
+    private List<WebSite> webSitesFull;
+    private List<WebSite> webSitesFiltered;
     private final OnItemClickListener listener;
 
     public interface OnItemClickListener {
         void onItemClick(WebSite site);
         void onEditClick(int position, WebSite site);
-        void onDeleteClick(int position);
+        void onDeleteClick(WebSite site);
     }
 
     public WebAdapter(List<WebSite> webSites, OnItemClickListener listener) {
-        this.webSites = webSites;
+        this.webSitesFull = webSites;
+        this.webSitesFiltered = new ArrayList<>(webSites);
         this.listener = listener;
+    }
+
+    public void updateList(List<WebSite> newList) {
+        this.webSitesFull = newList;
+        this.webSitesFiltered = new ArrayList<>(newList);
+        notifyDataSetChanged();
+    }
+
+    public void filter(String query) {
+        if (query.isEmpty()) {
+            webSitesFiltered = new ArrayList<>(webSitesFull);
+        } else {
+            String lowerCaseQuery = query.toLowerCase();
+            webSitesFiltered = webSitesFull.stream()
+                    .filter(site -> site.getName().toLowerCase().contains(lowerCaseQuery) || 
+                                   site.getUrl().toLowerCase().contains(lowerCaseQuery))
+                    .collect(Collectors.toList());
+        }
+        notifyDataSetChanged();
     }
 
     @NonNull
@@ -36,18 +59,18 @@ public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        WebSite site = webSites.get(position);
+        WebSite site = webSitesFiltered.get(position);
         holder.textName.setText(site.getName());
         holder.textLastAccessed.setText(site.getFormattedLastAccessed());
         holder.textUrl.setText(site.getUrl());
         holder.itemView.setOnClickListener(v -> listener.onItemClick(site));
         holder.btnEdit.setOnClickListener(v -> listener.onEditClick(position, site));
-        holder.btnDelete.setOnClickListener(v -> listener.onDeleteClick(position));
+        holder.btnDelete.setOnClickListener(v -> listener.onDeleteClick(site));
     }
 
     @Override
     public int getItemCount() {
-        return webSites.size();
+        return webSitesFiltered.size();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
