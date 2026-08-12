@@ -22,6 +22,14 @@
             android:icon="@android:drawable/ic_menu_delete"
             android:title="Bersihkan Cache" />
         <item
+            android:id="@+id/nav_export"
+            android:icon="@android:drawable/ic_menu_share"
+            android:title="Ekspor Data" />
+        <item
+            android:id="@+id/nav_import"
+            android:icon="@android:drawable/ic_menu_upload"
+            android:title="Impor Data" />
+        <item
             android:id="@+id/nav_logout"
             android:icon="@android:drawable/ic_lock_power_off"
             android:title="Kunci Aplikasi" />

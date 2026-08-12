@@ -49,9 +49,14 @@ import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -73,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean isAuthenticated = false;
     private ValueCallback<Uri[]> uploadMessage;
     private ActivityResultLauncher<Intent> filePickerLauncher;
+    private ActivityResultLauncher<String> exportLauncher;
+    private ActivityResultLauncher<String[]> importLauncher;
 
     private static final String PREFS_NAME = "WebPrefs";
     private static final String KEY_SITES = "SavedSites";
@@ -122,6 +129,22 @@ public class MainActivity extends AppCompatActivity {
         loadWebSites();
         loadHistory();
         updateWebCount();
+
+        // Setup Export Launcher
+        exportLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/json"),
+                uri -> {
+                    if (uri != null) performExport(uri);
+                }
+        );
+
+        // Setup Import Launcher
+        importLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                uri -> {
+                    if (uri != null) performImport(uri);
+                }
+        );
 
         // Search Logic
         editSearch.addTextChangedListener(new TextWatcher() {
@@ -320,6 +343,10 @@ public class MainActivity extends AppCompatActivity {
                 showPinSetupDialog();
             } else if (id == R.id.nav_clear) {
                 clearAppData();
+            } else if (id == R.id.nav_export) {
+                exportData();
+            } else if (id == R.id.nav_import) {
+                importData();
             } else if (id == R.id.nav_logout) {
                 logout();
             } else if (id == R.id.nav_about) {
@@ -574,6 +601,74 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Batal", null)
                 .show();
+    }
+
+    private void exportData() {
+        exportLauncher.launch("myweb_backup.json");
+    }
+
+    private void performExport(Uri uri) {
+        try {
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            JSONObject backup = new JSONObject();
+            backup.put(KEY_SITES, new JSONArray(prefs.getString(KEY_SITES, "[]")));
+            backup.put(KEY_HISTORY, new JSONArray(prefs.getString(KEY_HISTORY, "[]")));
+            backup.put(KEY_PIN, prefs.getString(KEY_PIN, ""));
+            backup.put(KEY_SORT, prefs.getString(KEY_SORT, "added"));
+
+            OutputStream outputStream = getContentResolver().openOutputStream(uri);
+            if (outputStream != null) {
+                outputStream.write(backup.toString(4).getBytes());
+                outputStream.close();
+                Toast.makeText(this, "Data Berhasil Diekspor", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "Gagal Ekspor: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void importData() {
+        importLauncher.launch(new String[]{"application/json"});
+    }
+
+    private void performImport(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            if (inputStream == null) return;
+            
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            StringBuilder stringBuilder = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                stringBuilder.append(line);
+            }
+            inputStream.close();
+
+            JSONObject backup = new JSONObject(stringBuilder.toString());
+            SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+            SharedPreferences.Editor editor = prefs.edit();
+
+            if (backup.has(KEY_SITES)) editor.putString(KEY_SITES, backup.getJSONArray(KEY_SITES).toString());
+            if (backup.has(KEY_HISTORY)) editor.putString(KEY_HISTORY, backup.getJSONArray(KEY_HISTORY).toString());
+            if (backup.has(KEY_PIN)) editor.putString(KEY_PIN, backup.getString(KEY_PIN));
+            if (backup.has(KEY_SORT)) editor.putString(KEY_SORT, backup.getString(KEY_SORT));
+
+            editor.apply();
+            
+            Toast.makeText(this, "Data Berhasil Diimpor", Toast.LENGTH_SHORT).show();
+            
+            // Refresh App
+            loadWebSites();
+            loadHistory();
+            currentSort = prefs.getString(KEY_SORT, "added");
+            sortWebSites();
+            adapter.updateList(webSiteList);
+            historyAdapter.notifyDataSetChanged();
+            updateWebCount();
+            
+        } catch (Exception e) {
+            Toast.makeText(this, "Gagal Impor: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void updateWebCount() {
