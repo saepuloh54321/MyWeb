@@ -1,56 +1,62 @@
-# Web Monitoring v1.1
+# Web Monitoring v1.2
 
-Aplikasi Android sederhana untuk mengelola dan memantau website favorit Anda dalam satu tempat dengan fitur keamanan dan pengorganisasian yang lengkap.
+Aplikasi Android profesional yang dirancang untuk mengelola, mengorganisir, dan memantau daftar website favorit Anda dalam satu antarmuka yang aman, cepat, dan modern.
 
-## Fitur Utama
+## 🚀 Fitur Unggulan
 
-- **WebView Terintegrasi**: Membuka website langsung di dalam aplikasi tanpa harus keluar ke browser eksternal.
-- **Manajemen Multi-Web (CRUD)**:
-    - Tambahkan website favorit dengan Nama dan URL.
-    - Lihat daftar website yang tersimpan dengan antarmuka yang bersih.
-    - Ubah (Edit) data website yang sudah ada kapan saja.
-    - Hapus website dari daftar favorit.
-- **Fitur Pengurutan (Sorting)**: Mengatur daftar website berdasarkan:
-    - Baru Ditambahkan
-    - Baru Diubah
-    - Baru Diakses
-    - Nama A ke Z
-    - Nama Z ke A
-- **Sistem Keamanan PIN**:
-    - **Atur PIN**: Mengamankan aplikasi dengan 4 angka rahasia.
-    - **Kunci Otomatis**: Meminta PIN setiap kali aplikasi dibuka jika sudah diatur.
-    - **Kunci Aplikasi (Logout)**: Fitur untuk langsung mengunci aplikasi dari menu samping.
-- **Pembatasan Domain**: Opsi untuk membatasi navigasi agar tetap berada di domain yang ditentukan (mencegah akses ke link luar yang tidak diinginkan).
-- **Riwayat Akses (History)**: Mencatat URL dan waktu kunjungan secara otomatis. Anda bisa melihat riwayat atau menghapusnya kapan saja.
-- **Informasi Terakhir Diakses**: Menampilkan tanggal, tahun, dan jam terakhir kali sebuah website dibuka langsung di samping nama website.
-- **Navigation Drawer**: Menu samping yang elegan di pojok kanan atas untuk akses cepat ke semua fitur.
-- **Custom App Icon**: Menggunakan ikon khusus `icon_myweb` untuk identitas aplikasi yang unik.
-- **Penyimpanan Permanen**: Semua data website, riwayat, PIN, dan preferensi urutan tersimpan aman di memori HP.
+### 🌐 Pengalaman Menjelajah Web (WebView)
+- **Terintegrasi Sepenuhnya**: Akses konten web tanpa perlu berpindah ke aplikasi browser lain.
+- **Mode Desktop Canggih**: Fitur untuk memaksa tampilan website berubah menjadi versi komputer (PC) menggunakan kombinasi *User-Agent Switching* dan *Viewport Injection*.
+- **Indikator Progres**: Progress bar horizontal yang akurat untuk memantau status pemuatan halaman.
+- **Kendali Navigasi**: Tombol *Refresh* manual dan navigasi tombol *Back* HP yang terintegrasi dengan riwayat WebView.
+- **Pembatasan Domain (Lock Mode)**: Menjaga navigasi tetap di dalam domain yang sama, mencegah klik iklan atau link eksternal yang tidak sengaja.
+- **Dukungan Unduhan & Unggahan**: Terintegrasi dengan pengelola unduhan sistem dan pemilih file untuk unggah dokumen.
 
-## Teknologi yang Digunakan
+### 📁 Manajemen Konten & Organisasi
+- **Sistem Master Kategori**: Layar khusus untuk membuat, mengubah, dan menghapus kategori website.
+- **Filter Tab Dashboard**: Navigasi daftar website berbasis tab kategori yang mempermudah pengelompokan (Produktivitas, Sosmed, Hiburan, dll).
+- **CRUD Website Lengkap**: Tambah, Edit, dan Hapus website dengan kolom informasi Nama, URL, Kategori, dan Deskripsi (Opsional).
+- **Pencarian Cepat**: Bar pencarian real-time dengan filter berdasarkan Nama maupun URL.
+- **Pengurutan Fleksibel**: Urutkan koleksi Anda berdasarkan Baru Ditambahkan, Baru Diubah, Baru Diakses, atau Alfabet (A-Z & Z-A).
 
-- **Bahasa**: Java
-- **UI Framework**: AndroidX & Google Material Design
-- **Data Storage**: SharedPreferences dengan format JSON.
+### 🔐 Keamanan & Privasi
+- **Kunci PIN Aplikasi**: Melindungi akses aplikasi dengan 4 angka rahasia.
+- **Kunci Manual (Logout)**: Fitur untuk langsung mengunci aplikasi melalui menu samping.
+- **Riwayat Penjelajahan**: Pencatatan otomatis URL yang dikunjungi beserta detail waktu (Tanggal & Jam).
+- **Pembersih Data**: Fitur sekali klik untuk menghapus Cache, Cookies, dan Web Storage guna menjaga privasi dan kelegaan memori HP.
+
+### 💾 Pemeliharaan Data
+- **Ekspor & Impor JSON**: Cadangkan seluruh data aplikasi (termasuk PIN dan Kategori) ke dalam file eksternal yang bisa dipindah antar perangkat.
+- **Auto Backup Google Drive**: Sinkronisasi data otomatis ke cloud melalui sistem cadangan standar Android.
+
+### 🎨 Desain & Antarmuka (UI/UX)
+- **Premium Dark Mode**: Tema gelap menyeluruh (`#121212`) yang nyaman untuk penggunaan jangka panjang.
+- **Pop-up Modern**: Dialog Material 3 dengan sudut melengkung halus (20dp) dan judul yang simetris di tengah.
+- **Ikon Vector Kristal**: Seluruh ikon menggunakan format Vector XML agar tetap tajam di resolusi layar apa pun.
+- **Aset Ikon "Cute"**: Tersedia set ikon alternatif dengan desain lebih melengkung dan ramah di folder `res/drawable/`.
+
+## 🛠️ Detail Teknis
+- **Bahasa Pemrograman**: Java
+- **Target SDK**: 36 (Android 14/15)
 - **Komponen Utama**:
-    - `WebView` dengan penanganan `WebViewClient` kustom.
-    - `RecyclerView` untuk manajemen list yang efisien.
-    - `DrawerLayout` & `NavigationView` untuk navigasi menu.
-    - `AlertDialog` kustom untuk form, riwayat, dan informasi tentang pengembang.
+  - `WebView` dengan `WebChromeClient` & `WebViewClient` kustom.
+  - `RecyclerView` dengan adapter cerdas untuk pencarian & kategori.
+  - `TabLayout` & `DrawerLayout` untuk navigasi multi-level.
+  - `SharedPreferences` untuk persistensi data berbasis JSON.
 
-## Informasi Pengembang (Tentang)
+## 📦 Persiapan Aset
+Aplikasi ini menggunakan ikon kustom dan aset visual berikut:
+- **Ikon Aplikasi**: `icon_myweb.png`
+- **QR Support**: `qr_sorasae.png` di halaman "Tentang".
+- **Ikon Kebab**: `ic_kebab_vector.xml` untuk menu navigasi.
 
-Menu "Tentang" di aplikasi kini menyertakan:
-- QR Code untuk scan cepat.
-- Link aktif ke website pengembang: [https://www.naragas.com](https://www.naragas.com).
-
-## Cara Penggunaan
-
-1. **Memulai**: Buka aplikasi, masukkan PIN jika sudah diatur.
-2. **Tambah Web**: Klik tombol **"+"** di pojok kanan bawah atau melalui menu samping.
-3. **Navigasi**: Klik salah satu website untuk membukanya. Gunakan tombol **"X"** untuk kembali ke daftar.
-4. **Keamanan**: Atur PIN Anda melalui menu samping untuk melindungi daftar favorit Anda.
-5. **Urutkan**: Klik ikon **Sort** di bar atas untuk mengatur urutan tampilan website Anda.
+## 📖 Cara Penggunaan
+1. **Atur Keamanan**: Masuk ke menu samping, pilih **Atur PIN** untuk mengamankan data Anda.
+2. **Kelola Kategori**: Buat kategori terlebih dahulu agar daftar website Anda lebih rapi.
+3. **Tambah Website**: Klik tombol biru **"+"**, masukkan detail website, dan pilih kategorinya.
+4. **Pantau & Jelajah**: Klik website di daftar untuk membuka WebView. Gunakan tombol **Desk** jika ingin tampilan komputer.
+5. **Cadangkan**: Gunakan fitur **Ekspor Data** secara berkala untuk memiliki salinan data cadangan.
 
 ---
-Dikembangkan untuk memberikan pengalaman menjelajah web yang lebih terorganisir, aman, dan personal.
+**Web Monitoring** - *Your Personal Web Dashboard.*
+Dikembangkan dengan fokus pada produktivitas dan privasi.

@@ -249,19 +249,27 @@ public class MainActivity extends AppCompatActivity {
 
         // Desktop Mode Support
         String mobileUserAgent = webView.getSettings().getUserAgentString();
-        String desktopUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+        // Updated Desktop UA (Chrome 122 Windows)
+        String desktopUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
         switchDesktop.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 webView.getSettings().setUserAgentString(desktopUserAgent);
                 webView.getSettings().setUseWideViewPort(true);
                 webView.getSettings().setLoadWithOverviewMode(true);
+                // Menambahkan dukungan desktop yang lebih kuat
+                webView.setInitialScale(0); // Biarkan sistem yang mengatur scale awal
             } else {
                 webView.getSettings().setUserAgentString(mobileUserAgent);
-                webView.getSettings().setUseWideViewPort(false);
-                webView.getSettings().setLoadWithOverviewMode(false);
+                webView.getSettings().setUseWideViewPort(true); // Tetap aktifkan ini agar responsif
+                webView.getSettings().setLoadWithOverviewMode(true);
+                webView.setInitialScale(0);
             }
-            webView.reload();
+            // Gunakan loadUrl daripada reload agar User-Agent benar-benar terkirim ulang
+            String currentUrl = webView.getUrl();
+            if (currentUrl != null && !currentUrl.isEmpty()) {
+                webView.loadUrl(currentUrl);
+            }
         });
 
         webView.setWebChromeClient(new WebChromeClient() {
@@ -324,6 +332,11 @@ public class MainActivity extends AppCompatActivity {
                 super.onPageFinished(view, url);
                 if (!url.equals("about:blank")) {
                     addToHistory(url);
+                }
+                
+                // Tambahkan script tambahan untuk memperkuat Mode Desktop jika aktif
+                if (switchDesktop.isChecked()) {
+                    view.evaluateJavascript("document.querySelector('meta[name=\"viewport\"]').setAttribute('content', 'width=1200');", null);
                 }
             }
 
