@@ -17,13 +17,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingTop="8dp"
-        android:text="My Web Manager"
+        android:text="Web Monitoring"
         android:textAppearance="@style/TextAppearance.AppCompat.Body1"
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/textAccountEmail"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Kelola website favoritmu" />
+        android:text="Memuat akun..." />
 
 </LinearLayout>

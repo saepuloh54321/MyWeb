@@ -38,7 +38,7 @@ public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
     }
 
     public void filter(String query) {
-        if (query.isEmpty()) {
+        if (query == null || query.isEmpty()) {
             webSitesFiltered = new ArrayList<>(webSitesFull);
         } else {
             String lowerCaseQuery = query.toLowerCase();
@@ -63,6 +63,14 @@ public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
         holder.textName.setText(site.getName());
         holder.textLastAccessed.setText(site.getFormattedLastAccessed());
         holder.textUrl.setText(site.getUrl());
+        
+        if (site.getDescription() != null && !site.getDescription().isEmpty()) {
+            holder.textDescription.setVisibility(View.VISIBLE);
+            holder.textDescription.setText(site.getDescription());
+        } else {
+            holder.textDescription.setVisibility(View.GONE);
+        }
+
         holder.itemView.setOnClickListener(v -> listener.onItemClick(site));
         holder.btnEdit.setOnClickListener(v -> listener.onEditClick(position, site));
         holder.btnDelete.setOnClickListener(v -> listener.onDeleteClick(site));
@@ -74,7 +82,7 @@ public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView textName, textUrl, textLastAccessed;
+        TextView textName, textUrl, textLastAccessed, textDescription;
         ImageButton btnEdit, btnDelete;
 
         public ViewHolder(@NonNull View itemView) {
@@ -82,6 +90,7 @@ public class WebAdapter extends RecyclerView.Adapter<WebAdapter.ViewHolder> {
             textName = itemView.findViewById(R.id.textName);
             textLastAccessed = itemView.findViewById(R.id.textLastAccessed);
             textUrl = itemView.findViewById(R.id.textUrl);
+            textDescription = itemView.findViewById(R.id.textDescription);
             btnEdit = itemView.findViewById(R.id.btnEdit);
             btnDelete = itemView.findViewById(R.id.btnDelete);
         }

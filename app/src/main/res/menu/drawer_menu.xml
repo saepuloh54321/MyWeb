@@ -3,39 +3,43 @@
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/nav_home"
-            android:icon="@android:drawable/ic_menu_manage"
+            android:icon="@drawable/ic_home_vector"
             android:title="Home" />
         <item
             android:id="@+id/nav_add"
-            android:icon="@android:drawable/ic_input_add"
+            android:icon="@drawable/ic_add_vector"
             android:title="Tambah Website" />
         <item
+            android:id="@+id/nav_categories"
+            android:icon="@drawable/ic_category_vector"
+            android:title="Kelola Kategori" />
+        <item
             android:id="@+id/nav_history"
-            android:icon="@android:drawable/ic_menu_recent_history"
+            android:icon="@drawable/ic_history_vector"
             android:title="Riwayat" />
         <item
             android:id="@+id/nav_pin"
-            android:icon="@android:drawable/ic_lock_lock"
+            android:icon="@drawable/ic_lock_vector"
             android:title="Atur PIN" />
         <item
             android:id="@+id/nav_clear"
-            android:icon="@android:drawable/ic_menu_delete"
+            android:icon="@drawable/ic_delete_forever_vector"
             android:title="Bersihkan Cache" />
         <item
             android:id="@+id/nav_export"
-            android:icon="@android:drawable/ic_menu_share"
+            android:icon="@drawable/ic_download_vector"
             android:title="Ekspor Data" />
         <item
             android:id="@+id/nav_import"
-            android:icon="@android:drawable/ic_menu_upload"
+            android:icon="@drawable/ic_upload_vector"
             android:title="Impor Data" />
         <item
             android:id="@+id/nav_logout"
-            android:icon="@android:drawable/ic_lock_power_off"
+            android:icon="@drawable/ic_power_vector"
             android:title="Kunci Aplikasi" />
         <item
             android:id="@+id/nav_about"
-            android:icon="@android:drawable/ic_dialog_info"
+            android:icon="@drawable/ic_info_vector"
             android:title="Tentang" />
     </group>
 </menu>

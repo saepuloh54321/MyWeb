@@ -1,6 +1,6 @@
-# My Web Manager v1.1
+# Web Monitoring v1.1
 
-Aplikasi Android sederhana untuk mengelola dan menjelajahi website favorit Anda dalam satu tempat dengan fitur keamanan dan pengorganisasian yang lengkap.
+Aplikasi Android sederhana untuk mengelola dan memantau website favorit Anda dalam satu tempat dengan fitur keamanan dan pengorganisasian yang lengkap.
 
 ## Fitur Utama
 

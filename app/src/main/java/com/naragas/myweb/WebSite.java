@@ -9,6 +9,8 @@ import java.util.Locale;
 public class WebSite {
     private String name;
     private String url;
+    private String description;
+    private String categoryId;
     private long lastAccessed;
     private long createdAt;
     private long updatedAt;
@@ -16,14 +18,18 @@ public class WebSite {
     public WebSite(String name, String url) {
         this.name = name;
         this.url = url;
+        this.description = "";
+        this.categoryId = "";
         this.lastAccessed = 0;
         this.createdAt = System.currentTimeMillis();
         this.updatedAt = this.createdAt;
     }
 
-    public WebSite(String name, String url, long lastAccessed, long createdAt, long updatedAt) {
+    public WebSite(String name, String url, String description, String categoryId, long lastAccessed, long createdAt, long updatedAt) {
         this.name = name;
         this.url = url;
+        this.description = description;
+        this.categoryId = categoryId;
         this.lastAccessed = lastAccessed;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -44,6 +50,24 @@ public class WebSite {
 
     public void setUrl(String url) {
         this.url = url;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+        this.updatedAt = System.currentTimeMillis();
+    }
+
+    public String getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(String categoryId) {
+        this.categoryId = categoryId;
         this.updatedAt = System.currentTimeMillis();
     }
 
@@ -73,6 +97,8 @@ public class WebSite {
         JSONObject obj = new JSONObject();
         obj.put("name", name);
         obj.put("url", url);
+        obj.put("description", description);
+        obj.put("categoryId", categoryId);
         obj.put("lastAccessed", lastAccessed);
         obj.put("createdAt", createdAt);
         obj.put("updatedAt", updatedAt);
@@ -84,6 +110,8 @@ public class WebSite {
         return new WebSite(
             obj.getString("name"), 
             obj.getString("url"), 
+            obj.optString("description", ""),
+            obj.optString("categoryId", ""),
             obj.optLong("lastAccessed", 0),
             obj.optLong("createdAt", now),
             obj.optLong("updatedAt", now)

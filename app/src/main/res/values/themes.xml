@@ -1,8 +1,31 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.MyWeb" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Customize your theme here. -->
+        <item name="materialAlertDialogTheme">@style/RoundedAlertDialog</item>
+    </style>
+
+    <style name="RoundedAlertDialog" parent="Theme.Material3.DayNight.Dialog.Alert">
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Rounded</item>
+        <item name="materialAlertDialogTitlePanelStyle">@style/CenteredTitlePanel</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/CenteredTitleText</item>
+        <item name="android:background">#1E1E1E</item>
+    </style>
+
+    <style name="CenteredTitlePanel" parent="MaterialAlertDialog.Material3.Title.Panel">
+        <item name="android:paddingTop">24dp</item>
+        <item name="android:paddingBottom">8dp</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="CenteredTitleText" parent="MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:gravity">center</item>
+        <item name="android:textAlignment">center</item>
+        <item name="android:textSize">22sp</item>
+    </style>
+
+    <style name="ShapeAppearance.Rounded" parent="">
+        <item name="cornerSize">20dp</item>
     </style>
 
     <style name="Theme.MyWeb" parent="Base.Theme.MyWeb" />

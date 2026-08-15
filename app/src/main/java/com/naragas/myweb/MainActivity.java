@@ -1,10 +1,13 @@
 package com.naragas.myweb;
 
+import android.Manifest;
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,8 +27,10 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,7 +39,10 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
 import androidx.core.view.ViewCompat;
@@ -43,9 +51,11 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.android.material.tabs.TabLayout;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -69,12 +79,15 @@ public class MainActivity extends AppCompatActivity {
     private EditText editSearch;
     private TextView currentWebTitle, textWebCount;
     private SwitchMaterial switchRestrict, switchDesktop;
+    private TabLayout tabCategories;
     private WebAdapter adapter;
     private List<WebSite> webSiteList;
+    private List<Category> categoryList;
     private HistoryAdapter historyAdapter;
     private List<HistoryItem> historyList;
     private String baseDomain = "";
     private String currentSort = "added"; // "added", "edited", "accessed"
+    private String selectedCategoryId = "all"; // "all" for all categories
     private boolean isAuthenticated = false;
     private ValueCallback<Uri[]> uploadMessage;
     private ActivityResultLauncher<Intent> filePickerLauncher;
@@ -83,9 +96,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String PREFS_NAME = "WebPrefs";
     private static final String KEY_SITES = "SavedSites";
+    private static final String KEY_CATEGORIES = "SavedCategories";
     private static final String KEY_HISTORY = "SavedHistory";
     private static final String KEY_SORT = "SortPref";
     private static final String KEY_PIN = "AppPin";
+    private static final int PERMISSION_REQUEST_ACCOUNTS = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
         textWebCount = findViewById(R.id.textWebCount);
         switchRestrict = findViewById(R.id.switchRestrict);
         switchDesktop = findViewById(R.id.switchDesktop);
+        tabCategories = findViewById(R.id.tabCategories);
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         RecyclerView recyclerViewHistory = findViewById(R.id.recyclerViewHistory);
         FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
@@ -123,66 +139,14 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Load Data
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        currentSort = prefs.getString(KEY_SORT, "added");
-        loadWebSites();
-        loadHistory();
-        updateWebCount();
+        // Update Drawer Header with Email
+        updateDrawerHeader(navView);
 
-        // Setup Export Launcher
-        exportLauncher = registerForActivityResult(
-                new ActivityResultContracts.CreateDocument("application/json"),
-                uri -> {
-                    if (uri != null) performExport(uri);
-                }
-        );
+        // Setup RecyclerViews early to avoid NullPointer
+        webSiteList = new ArrayList<>();
+        categoryList = new ArrayList<>();
+        historyList = new ArrayList<>();
 
-        // Setup Import Launcher
-        importLauncher = registerForActivityResult(
-                new ActivityResultContracts.OpenDocument(),
-                uri -> {
-                    if (uri != null) performImport(uri);
-                }
-        );
-
-        // Search Logic
-        editSearch.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                adapter.filter(s.toString());
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-
-        // Setup File Picker for Upload
-        filePickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK && uploadMessage != null) {
-                        Intent data = result.getData();
-                        Uri[] results = null;
-                        if (data != null) {
-                            results = new Uri[]{data.getData()};
-                        }
-                        uploadMessage.onReceiveValue(results);
-                        uploadMessage = null;
-                    } else if (uploadMessage != null) {
-                        uploadMessage.onReceiveValue(null);
-                        uploadMessage = null;
-                    }
-                }
-        );
-
-        // Check PIN Lock
-        checkAppLock();
-
-        // Setup RecyclerView (Websites)
         adapter = new WebAdapter(webSiteList, new WebAdapter.OnItemClickListener() {
             @Override
             public void onItemClick(WebSite site) {
@@ -205,13 +169,73 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
-        // Setup RecyclerView (History)
         historyAdapter = new HistoryAdapter(historyList, url -> {
             loadDirectUrl(url, null);
             closeHistory();
         });
         recyclerViewHistory.setLayoutManager(new LinearLayoutManager(this));
         recyclerViewHistory.setAdapter(historyAdapter);
+
+        // Load Data
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        currentSort = prefs.getString(KEY_SORT, "added");
+        loadCategories();
+        loadWebSites();
+        loadHistory();
+        updateWebCount();
+        setupCategoryTabs();
+
+        // Setup Export Launcher
+        exportLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/json"),
+                uri -> {
+                    if (uri != null) performExport(uri);
+                }
+        );
+
+        // Setup Import Launcher
+        importLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                uri -> {
+                    if (uri != null) performImport(uri);
+                }
+        );
+
+        // Setup File Picker for Upload
+        filePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && uploadMessage != null) {
+                        Intent data = result.getData();
+                        Uri[] results = null;
+                        if (data != null) {
+                            results = new Uri[]{data.getData()};
+                        }
+                        uploadMessage.onReceiveValue(results);
+                        uploadMessage = null;
+                    } else if (uploadMessage != null) {
+                        uploadMessage.onReceiveValue(null);
+                        uploadMessage = null;
+                    }
+                }
+        );
+
+        // Search Logic
+        editSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                adapter.filter(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        // Check PIN Lock
+        checkAppLock();
 
         // Setup WebView
         webView.getSettings().setJavaScriptEnabled(true);
@@ -279,7 +303,7 @@ public class MainActivity extends AppCompatActivity {
                 File file = new File(downloadDir, fileName);
                 
                 // Show download confirmation dialog
-                new AlertDialog.Builder(MainActivity.this)
+                new MaterialAlertDialogBuilder(MainActivity.this)
                         .setTitle("Download File")
                         .setMessage("Download " + fileName + "?")
                         .setPositiveButton("Download", (dialog, which) -> {
@@ -337,6 +361,9 @@ public class MainActivity extends AppCompatActivity {
                 closeHistory();
             } else if (id == R.id.nav_add) {
                 showAddDialog();
+            } else if (id == R.id.nav_categories) {
+                Intent intent = new Intent(this, CategoryActivity.class);
+                startActivity(intent);
             } else if (id == R.id.nav_history) {
                 openHistory();
             } else if (id == R.id.nav_pin) {
@@ -365,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
         // History Actions
         btnCloseHistory.setOnClickListener(v -> closeHistory());
         btnClearHistory.setOnClickListener(v -> {
-            new AlertDialog.Builder(this)
+            new MaterialAlertDialogBuilder(this)
                     .setTitle("Hapus Riwayat")
                     .setMessage("Apakah Anda yakin ingin menghapus semua riwayat?")
                     .setPositiveButton("Ya", (d, w) -> {
@@ -397,6 +424,53 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh data because they might have been changed in CategoryActivity
+        loadCategories();
+        loadWebSites();
+        setupCategoryTabs();
+        sortWebSites();
+        updateWebCount();
+    }
+
+    private void updateDrawerHeader(NavigationView navView) {
+        View headerView = navView.getHeaderView(0);
+        TextView textEmail = headerView.findViewById(R.id.textAccountEmail);
+        
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.GET_ACCOUNTS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.GET_ACCOUNTS}, PERMISSION_REQUEST_ACCOUNTS);
+            textEmail.setText("Izin Akun diperlukan");
+            return;
+        }
+
+        try {
+            AccountManager manager = AccountManager.get(this);
+            Account[] accounts = manager.getAccountsByType("com.google");
+            if (accounts.length > 0) {
+                // Tampilkan email pertama yang ditemukan
+                textEmail.setText("Backup: " + accounts[0].name);
+            } else {
+                textEmail.setText("Auto Backup Aktif (Sistem)");
+            }
+        } catch (SecurityException e) {
+            textEmail.setText("Auto Backup Aktif (Sistem)");
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_ACCOUNTS) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Izin diberikan, perbarui header
+                NavigationView navView = findViewById(R.id.nav_view);
+                updateDrawerHeader(navView);
+            }
+        }
     }
 
     private void openWebsite(WebSite site) {
@@ -452,16 +526,29 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void addToHistory(String url) {
-        // Jangan simpan jika URL sama dengan yang terakhir
-        if (!historyList.isEmpty() && historyList.get(0).getUrl().equals(url)) {
-            return;
+        if (url == null || url.isEmpty() || url.equals("about:blank")) return;
+        
+        // Normalisasi URL: Hapus trailing slash jika ada
+        String finalUrl = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+
+        // Jangan simpan jika URL sama dengan yang terakhir (abaikan trailing slash)
+        if (!historyList.isEmpty()) {
+            String lastUrl = historyList.get(0).getUrl();
+            if (lastUrl.endsWith("/")) lastUrl = lastUrl.substring(0, lastUrl.length() - 1);
+            if (lastUrl.equals(finalUrl)) return;
         }
+        
         historyList.add(0, new HistoryItem(url, System.currentTimeMillis()));
         // Batasi histori (misal 100 item)
         if (historyList.size() > 100) {
             historyList.remove(historyList.size() - 1);
         }
-        historyAdapter.notifyDataSetChanged();
+        
+        runOnUiThread(() -> {
+            if (historyAdapter != null) {
+                historyAdapter.notifyDataSetChanged();
+            }
+        });
         saveHistory();
     }
 
@@ -473,7 +560,7 @@ public class MainActivity extends AppCompatActivity {
         else if (currentSort.equals("az")) checkedItem = 3;
         else if (currentSort.equals("za")) checkedItem = 4;
 
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("Urutkan Berdasarkan")
                 .setSingleChoiceItems(options, checkedItem, (dialog, which) -> {
                     if (which == 0) currentSort = "added";
@@ -495,7 +582,14 @@ public class MainActivity extends AppCompatActivity {
     private void sortWebSites() {
         if (webSiteList == null || webSiteList.isEmpty()) return;
         
-        webSiteList.sort((a, b) -> {
+        List<WebSite> filteredList = webSiteList;
+        if (!selectedCategoryId.equals("all")) {
+            filteredList = webSiteList.stream()
+                    .filter(s -> s.getCategoryId().equals(selectedCategoryId))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        filteredList.sort((a, b) -> {
             switch (currentSort) {
                 case "edited":
                     return Long.compare(b.getUpdatedAt(), a.getUpdatedAt());
@@ -508,6 +602,32 @@ public class MainActivity extends AppCompatActivity {
                 default: // "added"
                     return Long.compare(b.getCreatedAt(), a.getCreatedAt());
             }
+        });
+        
+        if (adapter != null) {
+            adapter.updateList(filteredList);
+        }
+    }
+
+    private void setupCategoryTabs() {
+        tabCategories.removeAllTabs();
+        tabCategories.addTab(tabCategories.newTab().setText("Semua").setTag("all"));
+        for (Category cat : categoryList) {
+            tabCategories.addTab(tabCategories.newTab().setText(cat.getName()).setTag(cat.getId()));
+        }
+
+        tabCategories.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                selectedCategoryId = (String) tab.getTag();
+                sortWebSites();
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {}
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {}
         });
     }
 
@@ -523,7 +643,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showPinEntryDialog(String savedPin) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("Aplikasi Terkunci");
         builder.setCancelable(false);
 
@@ -553,7 +673,7 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedPin = prefs.getString(KEY_PIN, "");
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle(savedPin.isEmpty() ? "Atur PIN Baru" : "Ubah PIN");
 
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_pin, null);
@@ -583,7 +703,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void clearAppData() {
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("Bersihkan Data")
                 .setMessage("Apakah Anda yakin ingin menghapus Cache, Cookie, dan Data Penjelajahan?\n\n(Anda mungkin harus login ulang di beberapa website)")
                 .setPositiveButton("Ya, Bersihkan", (dialog, which) -> {
@@ -612,6 +732,7 @@ public class MainActivity extends AppCompatActivity {
             SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             JSONObject backup = new JSONObject();
             backup.put(KEY_SITES, new JSONArray(prefs.getString(KEY_SITES, "[]")));
+            backup.put(KEY_CATEGORIES, new JSONArray(prefs.getString(KEY_CATEGORIES, "[]")));
             backup.put(KEY_HISTORY, new JSONArray(prefs.getString(KEY_HISTORY, "[]")));
             backup.put(KEY_PIN, prefs.getString(KEY_PIN, ""));
             backup.put(KEY_SORT, prefs.getString(KEY_SORT, "added"));
@@ -649,6 +770,7 @@ public class MainActivity extends AppCompatActivity {
             SharedPreferences.Editor editor = prefs.edit();
 
             if (backup.has(KEY_SITES)) editor.putString(KEY_SITES, backup.getJSONArray(KEY_SITES).toString());
+            if (backup.has(KEY_CATEGORIES)) editor.putString(KEY_CATEGORIES, backup.getJSONArray(KEY_CATEGORIES).toString());
             if (backup.has(KEY_HISTORY)) editor.putString(KEY_HISTORY, backup.getJSONArray(KEY_HISTORY).toString());
             if (backup.has(KEY_PIN)) editor.putString(KEY_PIN, backup.getString(KEY_PIN));
             if (backup.has(KEY_SORT)) editor.putString(KEY_SORT, backup.getString(KEY_SORT));
@@ -658,11 +780,12 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Data Berhasil Diimpor", Toast.LENGTH_SHORT).show();
             
             // Refresh App
+            loadCategories();
             loadWebSites();
             loadHistory();
             currentSort = prefs.getString(KEY_SORT, "added");
+            setupCategoryTabs();
             sortWebSites();
-            adapter.updateList(webSiteList);
             historyAdapter.notifyDataSetChanged();
             updateWebCount();
             
@@ -678,7 +801,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showAboutDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_about, null);
         
         TextView txtLink = view.findViewById(R.id.txtLink);
@@ -704,32 +827,55 @@ public class MainActivity extends AppCompatActivity {
 
     private void showSiteDialog(WebSite existingSite) {
         boolean isEdit = existingSite != null;
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle(isEdit ? "Ubah Website" : "Tambah Website");
 
         View view = LayoutInflater.from(this).inflate(R.layout.dialog_add_site, null);
         EditText inputName = view.findViewById(R.id.inputName);
         EditText inputUrl = view.findViewById(R.id.inputUrl);
+        EditText inputDesc = view.findViewById(R.id.inputDescription);
+        Spinner spinnerCat = view.findViewById(R.id.spinnerCategory);
+
+        // Setup Category Spinner
+        List<Category> spinnerList = new ArrayList<>();
+        spinnerList.add(new Category("", "-- Tanpa Kategori --"));
+        spinnerList.addAll(categoryList);
+        ArrayAdapter<Category> adapterCat = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, spinnerList);
+        adapterCat.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerCat.setAdapter(adapterCat);
 
         if (isEdit) {
             inputName.setText(existingSite.getName());
             inputUrl.setText(existingSite.getUrl());
+            inputDesc.setText(existingSite.getDescription());
+            for (int i = 0; i < spinnerList.size(); i++) {
+                if (spinnerList.get(i).getId().equals(existingSite.getCategoryId())) {
+                    spinnerCat.setSelection(i);
+                    break;
+                }
+            }
         }
         
         builder.setView(view);
         builder.setPositiveButton("Simpan", (dialog, which) -> {
             String name = inputName.getText().toString().trim();
             String url = inputUrl.getText().toString().trim();
+            String desc = inputDesc.getText().toString().trim();
+            String catId = ((Category) spinnerCat.getSelectedItem()).getId();
             
             if (!name.isEmpty() && !url.isEmpty()) {
                 if (isEdit) {
                     existingSite.setName(name);
                     existingSite.setUrl(url);
+                    existingSite.setDescription(desc);
+                    existingSite.setCategoryId(catId);
                 } else {
-                    webSiteList.add(new WebSite(name, url));
+                    WebSite newSite = new WebSite(name, url);
+                    newSite.setDescription(desc);
+                    newSite.setCategoryId(catId);
+                    webSiteList.add(newSite);
                 }
                 sortWebSites();
-                adapter.updateList(webSiteList);
                 saveWebSites();
                 updateWebCount();
             } else {
@@ -741,7 +887,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadWebSites() {
-        webSiteList = new ArrayList<>();
+        if (webSiteList == null) webSiteList = new ArrayList<>();
+        webSiteList.clear();
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String json = prefs.getString(KEY_SITES, null);
         if (json != null) {
@@ -772,7 +919,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadHistory() {
-        historyList = new ArrayList<>();
+        if (historyList == null) historyList = new ArrayList<>();
+        historyList.clear();
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String json = prefs.getString(KEY_HISTORY, null);
         if (json != null) {
@@ -797,6 +945,36 @@ public class MainActivity extends AppCompatActivity {
             prefs.edit().putString(KEY_HISTORY, array.toString()).apply();
         } catch (JSONException e) {
             android.util.Log.e("MainActivity", "Error saving history", e);
+        }
+    }
+
+    private void loadCategories() {
+        if (categoryList == null) categoryList = new ArrayList<>();
+        categoryList.clear();
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String json = prefs.getString(KEY_CATEGORIES, null);
+        if (json != null) {
+            try {
+                JSONArray array = new JSONArray(json);
+                for (int i = 0; i < array.length(); i++) {
+                    categoryList.add(Category.fromJsonObject(array.getJSONObject(i)));
+                }
+            } catch (JSONException e) {
+                android.util.Log.e("MainActivity", "Error loading categories", e);
+            }
+        }
+    }
+
+    private void saveCategories() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        JSONArray array = new JSONArray();
+        try {
+            for (Category cat : categoryList) {
+                array.put(cat.toJsonObject());
+            }
+            prefs.edit().putString(KEY_CATEGORIES, array.toString()).apply();
+        } catch (JSONException e) {
+            android.util.Log.e("MainActivity", "Error saving categories", e);
         }
     }
 }

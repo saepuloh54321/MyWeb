@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "My Web"
+rootProject.name = "Web Monitoring"
 include(":app")
